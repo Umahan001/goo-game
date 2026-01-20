@@ -7,31 +7,28 @@ let redCircles = [];
 
 let blackStonesCount = 45;
 let whiteStonesCount = 45;
-
-let currentPlayer = "white"; // первый ход за игроком
+let currentPlayer = "white"; // игрок ходит первым
 let botDifficulty = 50; // средний уровень
 
-// адаптивный размер доски
-let canvasSize = Math.min(window.innerWidth * 0.7, window.innerHeight * 0.7);
-canvas.width = canvas.height = canvasSize;
-let cellSize = canvasSize / boardSize;
+let cellSize;
 
-window.addEventListener("resize", () => {
-	canvasSize = Math.min(window.innerWidth * 0.7, window.innerHeight * 0.7);
-	canvas.width = canvas.height = canvasSize;
-	cellSize = canvasSize / boardSize;
+// --- Адаптивный canvas ---
+function resizeCanvas() {
+	const maxSize = Math.min(window.innerWidth * 0.7, window.innerHeight * 0.8);
+	canvas.width = canvas.height = maxSize;
+	cellSize = canvas.width / boardSize;
 	drawBoard();
-});
+}
 
-updateStoneCount();
-drawBoard();
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
 // --- Рисуем доску ---
 function drawBoard() {
-	ctx.fillStyle = "#f5f5dc"; // цвет березы
+	ctx.fillStyle = "#f5f5dc";
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-	ctx.strokeStyle = "#000"; // линии черные
+	ctx.strokeStyle = "#000";
 	ctx.lineWidth = 1;
 
 	for (let i = 0; i < boardSize; i++) {
@@ -66,15 +63,16 @@ function drawStones() {
 
 // --- Соседи ---
 function getNeighbors(x, y) {
-	let dirs = [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }];
+	const dirs = [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }];
 	return dirs.map(d => ({ x: x + d.x, y: y + d.y })).filter(n => n.x >= 0 && n.x < boardSize && n.y >= 0 && n.y < boardSize);
 }
 
 // --- Дыхание ---
 function hasLiberty(x, y, color, visited = new Set()) {
-	let key = `${x},${y}`;
+	const key = `${x},${y}`;
 	if (visited.has(key)) return false;
 	visited.add(key);
+
 	const neighbors = getNeighbors(x, y);
 	for (let n of neighbors) {
 		const s = stones.find(st => st.x === n.x && st.y === n.y);
@@ -86,10 +84,7 @@ function hasLiberty(x, y, color, visited = new Set()) {
 
 // --- Удаление захваченных фишек ---
 function removeCaptured() {
-	let captured = [];
-	for (let s of stones) {
-		if (!hasLiberty(s.x, s.y, s.color)) captured.push(s);
-	}
+	const captured = stones.filter(s => !hasLiberty(s.x, s.y, s.color));
 	if (captured.length > 0) {
 		stones = stones.filter(st => !captured.includes(st));
 		for (let c of captured) {
@@ -116,7 +111,7 @@ function showRed(x, y) {
 	setTimeout(() => { redCircles = []; drawBoard(); }, 500);
 }
 
-// --- Обновление счетчика ---
+// --- Обновление счетчика и полосок ---
 function updateStoneCount() {
 	document.getElementById("black-count").textContent = blackStonesCount;
 	document.getElementById("white-count").textContent = whiteStonesCount;
@@ -124,7 +119,26 @@ function updateStoneCount() {
 	updateWinProbability();
 }
 
-// --- Клик / касание ---
+function updateWinProbability() {
+	let blackScore = blackStonesCount;
+	let whiteScore = whiteStonesCount;
+
+	const total = blackScore + whiteScore || 1;
+	const blackPercent = Math.round((blackScore / total) * 100);
+	const whitePercent = 100 - blackPercent;
+
+	document.getElementById("black-bar").style.width = blackPercent + "%";
+	document.getElementById("white-bar").style.width = whitePercent + "%";
+	document.getElementById("black-percent").textContent = blackPercent + "%";
+	document.getElementById("white-percent").textContent = whitePercent + "%";
+}
+
+// --- Уровень сложности ---
+function setDifficulty(percent) {
+	botDifficulty = percent;
+}
+
+// --- Обработка клика/тача ---
 function handleInput(e) {
 	e.preventDefault();
 	if (currentPlayer !== "white") return;
@@ -133,39 +147,30 @@ function handleInput(e) {
 	let clientX = e.clientX || e.touches[0].clientX;
 	let clientY = e.clientY || e.touches[0].clientY;
 
-	// Корректировка координат с учётом размеров доски
 	const x = Math.floor((clientX - rect.left) / cellSize);
 	const y = Math.floor((clientY - rect.top) / cellSize);
 
-	// Проверка, есть ли уже фишка в этой клетке
 	if (stones.find(s => s.x === x && s.y === y)) return;
 
-	// Проверка на суицид
 	if (isSuicide(x, y, "white")) {
 		showRed(x, y);
 		return;
 	}
 
-	// Добавление фишки на доску
 	stones.push({ x, y, color: "white" });
 	whiteStonesCount--;
-
-	// Удаление захваченных фишек
 	removeCaptured();
-
-	// Смена хода на чёрного
 	currentPlayer = "black";
-
 	updateStoneCount();
 	drawBoard();
 
-	// Бот делает ход через 2-4 секунды
 	setTimeout(botMove, 2000 + Math.random() * 2000);
 }
-canvas.addEventListener("click", handleInput);
-canvas.addEventListener("touchstart", handleInput);
 
-// --- Бот ---
+canvas.addEventListener('click', handleInput);
+canvas.addEventListener('touchstart', handleInput);
+
+// --- Ход бота ---
 function botMove() {
 	if (currentPlayer !== "black") return;
 
@@ -175,31 +180,15 @@ function botMove() {
 			if (!stones.find(s => s.x === x && s.y === y)) freeCells.push({ x, y });
 		}
 	}
-	if (freeCells.length === 0) {
-		currentPlayer = "white";
-		updateStoneCount();
-		return;
-	}
+	if (freeCells.length === 0) { currentPlayer = "white"; updateStoneCount(); return; }
 
-	let preferred = [];
-	if (botDifficulty <= 25) {
-		preferred = freeCells;
-	} else if (botDifficulty <= 50) {
-		for (let cell of freeCells) {
-			if (getNeighbors(cell.x, cell.y).some(n => stones.find(s => s.x === n.x && s.y === n.y && s.color === "black")))
-				preferred.push(cell);
-		}
-	} else if (botDifficulty <= 75) {
-		for (let cell of freeCells) {
-			if (getNeighbors(cell.x, cell.y).some(n => stones.find(s => s.x === n.x && s.y === n.y)))
-				preferred.push(cell);
-		}
-	} else {
-		preferred = freeCells;
-	}
+	let preferred = freeCells.filter(c => {
+		const neighbors = getNeighbors(c.x, c.y);
+		return neighbors.some(n => stones.find(s => s.x === n.x && s.y === n.y && s.color === "black"));
+	});
+	if (preferred.length === 0) preferred = freeCells;
 
-	let move = preferred.length > 0 ? preferred[Math.floor(Math.random() * preferred.length)]
-		: freeCells[Math.floor(Math.random() * freeCells.length)];
+	let move = preferred[Math.floor(Math.random() * preferred.length)];
 
 	if (isSuicide(move.x, move.y, "black")) {
 		let okCells = freeCells.filter(c => !isSuicide(c.x, c.y, "black"));
@@ -213,41 +202,4 @@ function botMove() {
 	currentPlayer = "white";
 	updateStoneCount();
 	drawBoard();
-}
-
-// --- Реальная вероятность победы ---
-function updateWinProbability() {
-	let blackScore = blackStonesCount;
-	let whiteScore = whiteStonesCount;
-
-	for (let x = 0; x < boardSize; x++) {
-		for (let y = 0; y < boardSize; y++) {
-			let s = stones.find(st => st.x === x && st.y === y);
-			if (!s) {
-				let neighbors = getNeighbors(x, y);
-				let neighborColors = neighbors.map(n => {
-					let st = stones.find(st => st.x === n.x && st.y === n.y);
-					return st ? st.color : null;
-				}).filter(c => c);
-
-				if (neighborColors.length > 0) {
-					let allBlack = neighborColors.every(c => c === "black");
-					let allWhite = neighborColors.every(c => c === "white");
-
-					if (allBlack) blackScore++;
-					else if (allWhite) whiteScore++;
-				}
-			}
-		}
-	}
-
-	let total = blackScore + whiteScore;
-	if (total === 0) total = 1;
-	let blackPercent = Math.round((blackScore / total) * 100);
-	let whitePercent = 100 - blackPercent;
-
-	document.getElementById("black-bar").style.width = blackPercent + "%";
-	document.getElementById("white-bar").style.width = whitePercent + "%";
-	document.getElementById("black-percent").textContent = blackPercent + "%";
-	document.getElementById("white-percent").textContent = whitePercent + "%";
 }
