@@ -20,10 +20,10 @@ canvas {
 	/* цвет доски */
 	display: block;
 	margin: 0 auto;
-	max-width: 90vw;
-	/* 90% ширины экрана */
-	max-height: 90vh;
-	/* 90% высоты экрана */
+	max-width: 110vw;
+	/* увеличиваем на 20% */
+	max-height: 110vh;
+	/* увеличиваем на 20% */
 	touch-action: none;
 	/* отключаем стандартное поведение касания */
 }
@@ -58,4 +58,27 @@ canvas {
 	display: flex;
 	justify-content: space-between;
 	font-size: 12px;
+}
+
+button {
+	background-color: #4CAF50;
+	/* Цвет кнопок */
+	color: white;
+	padding: 10px 20px;
+	border: none;
+	cursor: pointer;
+	border-radius: 5px;
+	transition: background-color 0.3s ease;
+	/* Плавный переход */
+	margin: 5px;
+}
+
+button.selected {
+	background-color: #388E3C;
+	/* Темнее на 40% */
+}
+
+button:hover {
+	background-color: #45a049;
+	/* Цвет при наведении */
 }

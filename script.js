@@ -8,13 +8,13 @@ let redCircles = [];
 let blackStonesCount = 45;
 let whiteStonesCount = 45;
 let currentPlayer = "white"; // игрок ходит первым
-let botDifficulty = 50; // средний уровень
+let botDifficulty = 50; // средний уровень сложности
 
 let cellSize;
 
 // --- Адаптивный canvas ---
 function resizeCanvas() {
-	const maxSize = Math.min(window.innerWidth * 0.7, window.innerHeight * 0.8);
+	const maxSize = Math.min(window.innerWidth * 0.8, window.innerHeight * 0.9); // увеличиваем на 20%
 	canvas.width = canvas.height = maxSize;
 	cellSize = canvas.width / boardSize;
 	drawBoard();
@@ -49,13 +49,13 @@ function drawBoard() {
 function drawStones() {
 	for (let s of stones) {
 		ctx.beginPath();
-		ctx.arc(s.x * cellSize + cellSize / 2, s.y * cellSize + cellSize / 2, cellSize / 3, 0, 2 * Math.PI);
+		ctx.arc(s.x * cellSize + cellSize / 2, s.y * cellSize + cellSize / 2, cellSize / 4, 0, 2 * Math.PI); // Увеличиваем фишки
 		ctx.fillStyle = s.color;
 		ctx.fill();
 	}
 	for (let r of redCircles) {
 		ctx.beginPath();
-		ctx.arc(r.x * cellSize + cellSize / 2, r.y * cellSize + cellSize / 2, cellSize / 3, 0, 2 * Math.PI);
+		ctx.arc(r.x * cellSize + cellSize / 2, r.y * cellSize + cellSize / 2, cellSize / 4, 0, 2 * Math.PI); // Увеличиваем подсветку
 		ctx.fillStyle = "red";
 		ctx.fill();
 	}
@@ -135,79 +135,77 @@ function updateWinProbability() {
 
 // --- Уровень сложности ---
 function setDifficulty(percent) {
+	// Снимаем класс selected со всех кнопок
+	const buttons = document.querySelectorAll("button");
+	buttons.forEach(btn => btn.classList.remove("selected"));
+
+	// Находим кнопку, соответствующую выбранному уровню сложности
+	const selectedButton = Array.from(buttons).find(button => button.textContent === getDifficultyText(percent));
+
+	// Добавляем класс selected для выбранной кнопки
+	selectedButton.classList.add("selected");
+
+	// Сохраняем текущий уровень сложности
 	botDifficulty = percent;
 }
 
-// --- Обработка клика/тача ---
-function handleInput(e) {
-	e.preventDefault();
-
-	if (currentPlayer !== "white") return;  // Проверка, чей ход
-
-	// Получаем координаты касания
-	let clientX = e.clientX || e.touches[0].clientX;
-	let clientY = e.clientY || e.touches[0].clientY;
-
-	// Получаем координаты canvas относительно страницы
-	const rect = canvas.getBoundingClientRect();
-	const x = Math.floor((clientX - rect.left) / cellSize);
-	const y = Math.floor((clientY - rect.top) / cellSize);
-
-	// Проверка, не занято ли это место
-	if (stones.find(s => s.x === x && s.y === y)) return;
-
-	// Проверка на суицид
-	if (isSuicide(x, y, "white")) {
-		showRed(x, y);
-		return;
+// Получаем текст, соответствующий сложности
+function getDifficultyText(percent) {
+	switch (percent) {
+		case 25: return "Новичок";
+		case 50: return "Средний";
+		case 75: return "Мастер";
+		case 100: return "ГОГО";
+		default: return "";
 	}
-
-	// Ставим фишку
-	stones.push({ x, y, color: "white" });
-	whiteStonesCount--;
-	removeCaptured();
-	currentPlayer = "black";  // Меняем ход
-	updateStoneCount();
-	drawBoard();
-
-	// Ход бота с задержкой
-	setTimeout(botMove, 2000 + Math.random() * 2000);
 }
 
-// Добавляем обработку касания
-canvas.addEventListener('click', handleInput);
-canvas.addEventListener('touchstart', handleInput);
-
-// --- Ход бота ---
+// --- Логика хода бота ---
 function botMove() {
-	if (currentPlayer !== "black") return;
-
-	let freeCells = [];
+	// В зависимости от сложности бот выбирает клетки
+	const availableMoves = [];
 	for (let x = 0; x < boardSize; x++) {
 		for (let y = 0; y < boardSize; y++) {
-			if (!stones.find(s => s.x === x && s.y === y)) freeCells.push({ x, y });
+			if (!stones.find(st => st.x === x && st.y === y)) { // если клетка свободна
+				availableMoves.push({ x, y });
+			}
 		}
 	}
-	if (freeCells.length === 0) { currentPlayer = "white"; updateStoneCount(); return; }
 
-	let preferred = freeCells.filter(c => {
-		const neighbors = getNeighbors(c.x, c.y);
-		return neighbors.some(n => stones.find(s => s.x === n.x && s.y === n.y && s.color === "black"));
-	});
-	if (preferred.length === 0) preferred = freeCells;
+	// Логика для бота: случайный ход с учетом сложности
+	const moveIndex = Math.floor(Math.random() * availableMoves.length);
+	const move = availableMoves[moveIndex];
 
-	let move = preferred[Math.floor(Math.random() * preferred.length)];
-
-	if (isSuicide(move.x, move.y, "black")) {
-		let okCells = freeCells.filter(c => !isSuicide(c.x, c.y, "black"));
-		if (okCells.length > 0) move = okCells[Math.floor(Math.random() * okCells.length)];
-		else { currentPlayer = "white"; updateStoneCount(); return; }
-	}
-
+	// Добавляем фишку бота
 	stones.push({ x: move.x, y: move.y, color: "black" });
-	blackStonesCount--;
-	removeCaptured();
-	currentPlayer = "white";
-	updateStoneCount();
+	currentPlayer = "white"; // переключаем на игрока
+
 	drawBoard();
+	removeCaptured();
+	updateStoneCount();
 }
+
+// --- Обработчик нажатия ---
+canvas.addEventListener("click", (event) => {
+	if (currentPlayer !== "white") return; // Игрок только ходит первым
+
+	const rect = canvas.getBoundingClientRect();
+	const x = Math.floor((event.clientX - rect.left) / cellSize);
+	const y = Math.floor((event.clientY - rect.top) / cellSize);
+
+	// Проверяем, не занято ли место
+	const existingStone = stones.find(stone => stone.x === x && stone.y === y);
+	if (existingStone) return;
+
+	// Размещение фишки игрока
+	stones.push({ x, y, color: currentPlayer });
+	currentPlayer = "black"; // ход бота
+
+	// Отображаем доску
+	drawBoard();
+	removeCaptured();
+	updateStoneCount();
+
+	// После хода игрока делает ход бот
+	setTimeout(botMove, 1000); // Бот делает ход через 1 секунду
+});
