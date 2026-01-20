@@ -5,11 +5,11 @@ const boardSize = 13;
 let stones = [];
 let redCircles = [];
 
-let blackStonesCount = 45;
-let whiteStonesCount = 45;
-let currentPlayer = "white"; // игрок ходит первым
-let botDifficulty = 50; // средний уровень сложности
-let gameMode = 'bot'; // по умолчанию игра с ботом
+let blackStonesCount = 45; // Начальные фишки
+let whiteStonesCount = 45; // Начальные фишки
+let currentPlayer = "white"; // Игрок ходит первым
+let botDifficulty = 50; // Средний уровень сложности
+let gameMode = 'bot'; // Игра с ботом по умолчанию
 
 let cellSize;
 
@@ -40,7 +40,7 @@ function drawBoard() {
 
 		ctx.beginPath();
 		ctx.moveTo(i * cellSize + cellSize / 2, cellSize / 2);
-		ctx.lineTo(i * cellSize + cellSize / 2, canvas.height - cellSize / 2);
+		ctx.lineTo(i * cellSize + cellSize / cellSize, canvas.height - cellSize / 2);
 		ctx.stroke();
 	}
 	drawStones();
@@ -60,6 +60,14 @@ function drawStones() {
 		ctx.fillStyle = "red";
 		ctx.fill();
 	}
+}
+
+// --- Логика суицида ---
+function isSuicide(x, y, color) {
+	stones.push({ x, y, color });
+	const ok = hasLiberty(x, y, color);
+	stones.pop();
+	return !ok;
 }
 
 // --- Соседи ---
@@ -89,49 +97,93 @@ function removeCaptured() {
 	if (captured.length > 0) {
 		stones = stones.filter(st => !captured.includes(st));
 		for (let c of captured) {
-			if (c.color === "black") blackStonesCount++;
-			else whiteStonesCount++;
+			if (c.color === "black") blackStonesCount--;
+			else whiteStonesCount--;
 		}
 		updateStoneCount();
 	}
-	updateWinProbability();
 }
 
-// --- Суицид ---
-function isSuicide(x, y, color) {
-	stones.push({ x, y, color });
-	const ok = hasLiberty(x, y, color);
-	stones.pop();
-	return !ok;
-}
-
-// --- Красная подсветка ---
+// --- Красная подсветка --- для суицида
 function showRed(x, y) {
 	redCircles.push({ x, y });
 	drawBoard();
 	setTimeout(() => { redCircles = []; drawBoard(); }, 500);
 }
 
-// --- Обновление счетчика и полосок ---
+// --- Обновление счетчика фишек ---
 function updateStoneCount() {
 	document.getElementById("black-count").textContent = blackStonesCount;
 	document.getElementById("white-count").textContent = whiteStonesCount;
 	document.getElementById("turn").textContent = currentPlayer === "black" ? "Бот" : "Вы";
-	updateWinProbability();
+	checkGameOver();
 }
 
-function updateWinProbability() {
-	let blackScore = blackStonesCount;
-	let whiteScore = whiteStonesCount;
+// --- Проверка на окончание игры ---
+function checkGameOver() {
+	if (blackStonesCount === 0 || whiteStonesCount === 0 || !hasValidMoves()) {
+		alert(`${currentPlayer === 'black' ? 'Белый' : 'Черный'} победил!`);
+		resetGame();
+	}
+}
 
-	const total = blackScore + whiteScore || 1;
-	const blackPercent = Math.round((blackScore / total) * 100);
-	const whitePercent = 100 - blackPercent;
+// --- Проверка наличия доступных ходов ---
+function hasValidMoves() {
+	for (let x = 0; x < boardSize; x++) {
+		for (let y = 0; y < boardSize; y++) {
+			const existingStone = stones.find(stone => stone.x === x && stone.y === y);
+			if (!existingStone && !isSuicide(x, y, currentPlayer)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
 
-	document.getElementById("black-bar").style.width = blackPercent + "%";
-	document.getElementById("white-bar").style.width = whitePercent + "%";
-	document.getElementById("black-percent").textContent = blackPercent + "%";
-	document.getElementById("white-percent").textContent = whitePercent + "%";
+// --- Логика хода игрока ---
+function handlePlayerMove(x, y) {
+	// Проверяем, не занято ли место
+	const existingStone = stones.find(stone => stone.x === x && stone.y === y);
+	if (existingStone) return;
+
+	// Размещение фишки игрока
+	if (isSuicide(x, y, currentPlayer)) {
+		showRed(x, y);  // Подсвечиваем клетку, если это суицид
+		return;
+	}
+
+	stones.push({ x, y, color: currentPlayer });
+	currentPlayer = currentPlayer === "black" ? "white" : "black"; // переключаем игрока
+
+	drawBoard();
+	removeCaptured();
+	updateStoneCount();
+
+	if (gameMode === 'bot' && currentPlayer === "black") {
+		setTimeout(botMove, 1000); // Бот делает ход через 1 секунду
+	}
+}
+
+// --- Логика хода бота ---
+function botMove() {
+	const availableMoves = [];
+	for (let x = 0; x < boardSize; x++) {
+		for (let y = 0; y < boardSize; y++) {
+			if (!stones.find(st => st.x === x && st.y === y) && !isSuicide(x, y, "black")) { // если клетка свободна и не суицид
+				availableMoves.push({ x, y });
+			}
+		}
+	}
+
+	const moveIndex = Math.floor(Math.random() * availableMoves.length);
+	const move = availableMoves[moveIndex];
+
+	stones.push({ x: move.x, y: move.y, color: "black" });
+	currentPlayer = "white"; // переключаем на игрока
+
+	drawBoard();
+	removeCaptured();
+	updateStoneCount();
 }
 
 // --- Уровень сложности ---
@@ -186,44 +238,3 @@ canvas.addEventListener("click", (event) => {
 		handlePlayerMove(x, y);
 	}
 });
-
-// --- Логика хода игрока ---
-function handlePlayerMove(x, y) {
-	// Проверяем, не занято ли место
-	const existingStone = stones.find(stone => stone.x === x && stone.y === y);
-	if (existingStone) return;
-
-	// Размещение фишки игрока
-	stones.push({ x, y, color: currentPlayer });
-	currentPlayer = currentPlayer === "black" ? "white" : "black"; // переключаем игрока
-
-	drawBoard();
-	removeCaptured();
-	updateStoneCount();
-
-	if (gameMode === 'bot' && currentPlayer === "black") {
-		setTimeout(botMove, 1000); // Бот делает ход через 1 секунду
-	}
-}
-
-// --- Логика хода бота ---
-function botMove() {
-	const availableMoves = [];
-	for (let x = 0; x < boardSize; x++) {
-		for (let y = 0; y < boardSize; y++) {
-			if (!stones.find(st => st.x === x && st.y === y)) { // если клетка свободна
-				availableMoves.push({ x, y });
-			}
-		}
-	}
-
-	const moveIndex = Math.floor(Math.random() * availableMoves.length);
-	const move = availableMoves[moveIndex];
-
-	stones.push({ x: move.x, y: move.y, color: "black" });
-	currentPlayer = "white"; // переключаем на игрока
-
-	drawBoard();
-	removeCaptured();
-	updateStoneCount();
-}
