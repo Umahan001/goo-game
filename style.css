@@ -71,6 +71,7 @@ button {
 	transition: background-color 0.3s ease;
 	/* Плавный переход */
 	margin: 5px;
+	font-size: 14px;
 }
 
 button.selected {
@@ -89,6 +90,16 @@ button:hover {
 }
 
 #human-mode.selected {
+	filter: brightness(0.6);
+	/* Затемняем иконку игры с игроком */
+}
+
+#bot-mode:not(.selected) {
 	filter: brightness(1);
-	/* Восстанавливаем нормальный цвет иконки */
+	/* Нормальный цвет для кнопки "бот" */
+}
+
+#human-mode:not(.selected) {
+	filter: brightness(1);
+	/* Нормальный цвет для кнопки "человек" */
 }

@@ -168,10 +168,6 @@ function setGameMode(mode) {
 		document.getElementById("human-mode").classList.add("selected");
 		document.getElementById("bot-mode").classList.remove("selected");
 	}
-
-	// Добавляем затемнение для выбранной иконки
-	const difficultyButtons = document.querySelectorAll('button');
-	difficultyButtons.forEach(btn => btn.classList.remove("selected"));
 }
 
 // --- Обработчик нажатия ---
