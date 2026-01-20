@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Го с ботом</title>
+	<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+	<div class="game-container">
+		<div class="side-panel">
+			<h3>Черные (бот): <span id="black-count">45</span></h3>
+			<h3>Белые (вы): <span id="white-count">45</span></h3>
+			<h3>Ходит: <span id="turn">Вы</span></h3>
+
+			<div class="win-probability">
+				<div class="bar-container">
+					<div id="black-bar" class="bar black"></div>
+					<div id="white-bar" class="bar white"></div>
+				</div>
+				<div class="percentages">
+					<span id="black-percent">50%</span>
+					<span id="white-percent">50%</span>
+				</div>
+			</div>
+		</div>
+
+		<div class="board-container">
+			<canvas id="board"></canvas>
+		</div>
+
+		<div class="difficulty-panel">
+			<h3>Сложность бота</h3>
+			<div class="difficulty-grid">
+				<div class="difficulty" data-level="25">Новичок</div>
+				<div class="difficulty" data-level="50">Средний</div>
+				<div class="difficulty" data-level="75">Мастер</div>
+				<div class="difficulty" data-level="100">ГОГО</div>
+			</div>
+		</div>
+	</div>
+	<script src="script.js"></script>
+</body>
+
+</html>
