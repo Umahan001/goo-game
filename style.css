@@ -82,3 +82,13 @@ button:hover {
 	background-color: #45a049;
 	/* Цвет при наведении */
 }
+
+#bot-mode.selected {
+	filter: brightness(0.6);
+	/* Затемняем иконку игры с ботом */
+}
+
+#human-mode.selected {
+	filter: brightness(1);
+	/* Восстанавливаем нормальный цвет иконки */
+}

@@ -9,6 +9,7 @@ let blackStonesCount = 45;
 let whiteStonesCount = 45;
 let currentPlayer = "white"; // игрок ходит первым
 let botDifficulty = 50; // средний уровень сложности
+let gameMode = 'bot'; // по умолчанию игра с ботом
 
 let cellSize;
 
@@ -135,17 +136,12 @@ function updateWinProbability() {
 
 // --- Уровень сложности ---
 function setDifficulty(percent) {
-	// Снимаем класс selected со всех кнопок
 	const buttons = document.querySelectorAll("button");
 	buttons.forEach(btn => btn.classList.remove("selected"));
 
-	// Находим кнопку, соответствующую выбранному уровню сложности
 	const selectedButton = Array.from(buttons).find(button => button.textContent === getDifficultyText(percent));
-
-	// Добавляем класс selected для выбранной кнопки
 	selectedButton.classList.add("selected");
 
-	// Сохраняем текущий уровень сложности
 	botDifficulty = percent;
 }
 
@@ -160,9 +156,62 @@ function getDifficultyText(percent) {
 	}
 }
 
+// --- Режим игры ---
+function setGameMode(mode) {
+	gameMode = mode;
+
+	// Включаем/выключаем кнопки выбора сложности в зависимости от режима
+	if (mode === 'bot') {
+		document.getElementById("bot-mode").classList.add("selected");
+		document.getElementById("human-mode").classList.remove("selected");
+	} else {
+		document.getElementById("human-mode").classList.add("selected");
+		document.getElementById("bot-mode").classList.remove("selected");
+	}
+
+	// Добавляем затемнение для выбранной иконки
+	const difficultyButtons = document.querySelectorAll('button');
+	difficultyButtons.forEach(btn => btn.classList.remove("selected"));
+}
+
+// --- Обработчик нажатия ---
+canvas.addEventListener("click", (event) => {
+	const rect = canvas.getBoundingClientRect();
+	const x = Math.floor((event.clientX - rect.left) / cellSize);
+	const y = Math.floor((event.clientY - rect.top) / cellSize);
+
+	// Если игра с человеком, просто обрабатываем ход
+	if (gameMode === "human") {
+		handlePlayerMove(x, y);
+	}
+
+	// Если игра с ботом, только игрок ходит, а потом ходит бот
+	if (gameMode === "bot" && currentPlayer === "white") {
+		handlePlayerMove(x, y);
+	}
+});
+
+// --- Логика хода игрока ---
+function handlePlayerMove(x, y) {
+	// Проверяем, не занято ли место
+	const existingStone = stones.find(stone => stone.x === x && stone.y === y);
+	if (existingStone) return;
+
+	// Размещение фишки игрока
+	stones.push({ x, y, color: currentPlayer });
+	currentPlayer = currentPlayer === "black" ? "white" : "black"; // переключаем игрока
+
+	drawBoard();
+	removeCaptured();
+	updateStoneCount();
+
+	if (gameMode === 'bot' && currentPlayer === "black") {
+		setTimeout(botMove, 1000); // Бот делает ход через 1 секунду
+	}
+}
+
 // --- Логика хода бота ---
 function botMove() {
-	// В зависимости от сложности бот выбирает клетки
 	const availableMoves = [];
 	for (let x = 0; x < boardSize; x++) {
 		for (let y = 0; y < boardSize; y++) {
@@ -172,11 +221,9 @@ function botMove() {
 		}
 	}
 
-	// Логика для бота: случайный ход с учетом сложности
 	const moveIndex = Math.floor(Math.random() * availableMoves.length);
 	const move = availableMoves[moveIndex];
 
-	// Добавляем фишку бота
 	stones.push({ x: move.x, y: move.y, color: "black" });
 	currentPlayer = "white"; // переключаем на игрока
 
@@ -184,28 +231,3 @@ function botMove() {
 	removeCaptured();
 	updateStoneCount();
 }
-
-// --- Обработчик нажатия ---
-canvas.addEventListener("click", (event) => {
-	if (currentPlayer !== "white") return; // Игрок только ходит первым
-
-	const rect = canvas.getBoundingClientRect();
-	const x = Math.floor((event.clientX - rect.left) / cellSize);
-	const y = Math.floor((event.clientY - rect.top) / cellSize);
-
-	// Проверяем, не занято ли место
-	const existingStone = stones.find(stone => stone.x === x && stone.y === y);
-	if (existingStone) return;
-
-	// Размещение фишки игрока
-	stones.push({ x, y, color: currentPlayer });
-	currentPlayer = "black"; // ход бота
-
-	// Отображаем доску
-	drawBoard();
-	removeCaptured();
-	updateStoneCount();
-
-	// После хода игрока делает ход бот
-	setTimeout(botMove, 1000); // Бот делает ход через 1 секунду
-});
